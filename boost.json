@@ -9,6 +9,7 @@
     "sail": false,
     "skills": [
         "pest-testing",
-        "tailwindcss-development"
+        "tailwindcss-development",
+        "php-mcp-server-generator"
     ]
 }
