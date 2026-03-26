@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\Posts\Schemas;
 
 use App\Models\Post;
+use App\Services\MediaService;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -51,56 +53,55 @@ class PostForm
                         Select::make('image_source')
                             ->options([
                                 'upload' => 'Upload',
-                                'url' => 'URL',
+                                'url'    => 'URL',
                             ])
                             ->default('upload')
                             ->reactive(),
+
+                        // Hidden fields — persist cover URL to DB on every save.
+                        Hidden::make('cover_url'),
+                        Hidden::make('cover_thumb'),
+
                         FileUpload::make('cover_upload')
+                            ->label('Cover Image')
                             ->image()
+                            ->imagePreviewHeight('200')
                             ->directory('posts')
                             ->disk('uploads')
-                            ->default(function (?Post $record): ?string {
-                                $coverUrl = $record?->cover_url;
+                            ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
+                            // Do NOT persist this virtual field to the DB.
+                            ->dehydrated(false)
+                            // Convert uploaded file to WebP via MediaService.
+                            ->saveUploadedFileUsing(function ($file, Set $set): string {
+                                /** @var \App\Services\MediaService $media */
+                                $media  = app(MediaService::class);
+                                $result = $media->convertPathToWebp(
+                                    $file->getRealPath(),
+                                    $file->getMimeType() ?: 'image/jpeg',
+                                );
 
-                                if (blank($coverUrl)) {
-                                    return null;
-                                }
+                                // Sync cover URL columns so they are saved to DB.
+                                $set('cover_url', $result['url']);
+                                $set('cover_thumb', $result['thumb']);
 
-                                $path = parse_url($coverUrl, PHP_URL_PATH) ?: $coverUrl; // e.g. /uploads/posts/FILE.jpg
-                                $path = ltrim((string) $path, '/');
-
-                                // Convert URL path => state file name relative to disk root.
-                                // We expect MediaService format: /uploads/posts/{filename}
-                                $relative = Str::after($path, 'uploads/');
-
-                                if (blank($relative)) {
-                                    $relative = 'posts/'.basename($path);
-                                }
-
-                                return $relative ?: null;
-                            })
-                            ->afterStateUpdated(function (Set $set, ?string $state): void {
-                                // When user uploads a new file in "Upload" mode,
-                                // sync it into the URL columns used by the rest of the app.
-                                if (blank($state)) {
-                                    return;
-                                }
-
-                                $url = rtrim(config('app.url'), '/').'/uploads/'.ltrim((string) $state, '/');
-
-                                $set('cover_url', $url);
-                                $set('cover_thumb', $url);
+                                // Return the relative path for FileUpload state (preview).
+                                return $result['filename']; // e.g. "posts/1234_abc.webp"
                             })
                             ->visible(fn (Get $get) => $get('image_source') === 'upload'),
+
                         TextInput::make('cover_url')
                             ->label('Image URL')
-                            ->visible(fn (Get $get) => $get('image_source') === 'url'),
+                            ->visible(fn (Get $get) => $get('image_source') === 'url')
+                            ->afterStateUpdated(function (Set $set, ?string $state): void {
+                                $set('cover_thumb', $state);
+                            }),
+
                         Select::make('status')
                             ->options([
-                                'draft' => 'Draft',
-                                'review' => 'Review',
+                                'draft'     => 'Draft',
+                                'review'    => 'Review',
                                 'published' => 'Published',
-                                'archived' => 'Archived',
+                                'archived'  => 'Archived',
                             ])
                             ->required()
                             ->default('draft'),
