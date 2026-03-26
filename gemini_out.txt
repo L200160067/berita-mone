@@ -1,4 +1,4 @@
-Testing URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyAGZ9Se4VME3cQ1F4_Qkg85Wctxm51KrNE
+Testing URL: https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=
 Status: 429
 Body: {
   "error": {
