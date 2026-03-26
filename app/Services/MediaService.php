@@ -2,11 +2,13 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\Http;
+
 class MediaService
 {
     /**
      * Handle media from file upload (UploadedFile), a path string, or an external URL.
-     * Stores to public/uploads/ (CWP-safe — no storage:link required).
+     * Stores to public/uploads/ or GitHub (if configured).
      */
     public function handle($upload = null, $url = null): array
     {
@@ -23,24 +25,7 @@ class MediaService
 
     private function fromUpload($file): array
     {
-        // CWP Rule: use public/uploads/ directly, no Storage::disk('public')
-        $uploadsDir = public_path('uploads/posts');
-
-        if (! is_dir($uploadsDir)) {
-            mkdir($uploadsDir, 0755, true);
-        }
-
-        $filename = time().'_'.uniqid().'.webp';
-        $destination = $uploadsDir.'/'.$filename;
-
-        $this->convertToWebp($file->getRealPath(), $destination, $file->getMimeType());
-
-        $baseUrl = config('app.url');
-
-        return [
-            'url'   => "{$baseUrl}/uploads/posts/{$filename}",
-            'thumb' => "{$baseUrl}/uploads/posts/{$filename}",
-        ];
+        return $this->convertPathToWebp($file->getRealPath(), $file->getMimeType() ?: 'image/jpeg');
     }
 
     /**
@@ -88,23 +73,70 @@ class MediaService
      */
     public function convertPathToWebp(string $tempPath, string $mime): array
     {
+        // 1. Convert to local WebP first (in temp storage)
+        $tempDir = storage_path('app/temp');
+        if (! is_dir($tempDir)) {
+            mkdir($tempDir, 0755, true);
+        }
+
+        $filename    = time().'_'.uniqid().'.webp';
+        $destination = $tempDir.'/'.$filename;
+
+        $this->convertToWebp($tempPath, $destination, $mime);
+
+        // 2. Check if GitHub config is active
+        $githubRepo  = config('services.github_asset.repo');
+        $githubToken = config('services.github_asset.token');
+
+        if (! empty($githubRepo) && ! empty($githubToken)) {
+            $githubBranch = config('services.github_asset.branch', 'main');
+            
+            // Read file content and encode to Base64
+            $fileContent   = file_get_contents($destination);
+            $base64Content = base64_encode($fileContent);
+
+            $path = 'uploads/posts/' . $filename; // Path inside the github repo
+
+            $response = Http::withToken($githubToken)
+                ->put("https://api.github.com/repos/{$githubRepo}/contents/{$path}", [
+                    'message' => "Upload image via Filament: {$filename}",
+                    'content' => $base64Content,
+                    'branch'  => $githubBranch,
+                ]);
+
+            if ($response->successful()) {
+                // Delete the temporary local webp file to save space
+                @unlink($destination);
+
+                // Construct raw URL so it serves as an image directly
+                $rawUrl = "https://raw.githubusercontent.com/{$githubRepo}/{$githubBranch}/{$path}";
+
+                return [
+                    'filename' => $rawUrl,
+                    'url'      => $rawUrl,
+                    'thumb'    => $rawUrl,
+                ];
+            }
+            
+            // If GitHub API fails, fall through to local upload as fallback.
+        }
+
+        // --- FALLBACK (Local CWP Upload) ---
         $uploadsDir = public_path('uploads/posts');
 
         if (! is_dir($uploadsDir)) {
             mkdir($uploadsDir, 0755, true);
         }
 
-        $filename    = time().'_'.uniqid().'.webp';
-        $destination = $uploadsDir.'/'.$filename;
-
-        $this->convertToWebp($tempPath, $destination, $mime);
+        $finalDestination = $uploadsDir.'/'.$filename;
+        rename($destination, $finalDestination);
 
         $baseUrl = config('app.url');
 
         return [
             'filename' => 'posts/'.$filename,
-            'url'      => "{$baseUrl}/uploads/posts/{$filename}",
-            'thumb'    => "{$baseUrl}/uploads/posts/{$filename}",
+            'url'      => rtrim($baseUrl, '/')."/uploads/posts/{$filename}",
+            'thumb'    => rtrim($baseUrl, '/')."/uploads/posts/{$filename}",
         ];
     }
 
@@ -118,9 +150,11 @@ class MediaService
 
     private function default(): array
     {
+        $baseUrl = rtrim(config('app.url'), '/');
+        
         return [
-            'url'   => config('app.url').'/uploads/default.jpg',
-            'thumb' => config('app.url').'/uploads/default.jpg',
+            'url'   => $baseUrl.'/uploads/default.jpg',
+            'thumb' => $baseUrl.'/uploads/default.jpg',
         ];
     }
 }

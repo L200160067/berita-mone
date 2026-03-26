@@ -39,4 +39,10 @@ return [
         'api_key' => env('GROQ_API_KEY'),
     ],
 
+    'github_asset' => [
+        'repo' => env('GITHUB_ASSET_REPO'),
+        'token' => env('GITHUB_ASSET_TOKEN'),
+        'branch' => env('GITHUB_ASSET_BRANCH', 'main'),
+    ],
+
 ];
