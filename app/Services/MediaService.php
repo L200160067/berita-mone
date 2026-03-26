@@ -95,7 +95,7 @@ class MediaService
             $fileContent   = file_get_contents($destination);
             $base64Content = base64_encode($fileContent);
 
-            $path = 'uploads/posts/' . $filename; // Path inside the github repo
+            $path = 'images/blog/' . $filename; // Path inside the github repo
 
             $response = Http::withToken($githubToken)
                 ->put("https://api.github.com/repos/{$githubRepo}/contents/{$path}", [
