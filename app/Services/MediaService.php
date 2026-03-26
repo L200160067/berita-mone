@@ -85,7 +85,15 @@ class MediaService
         $this->convertToWebp($tempPath, $destination, $mime);
 
         // 2. Check if GitHub config is active
-        $githubRepo  = config('services.github_asset.repo');
+        $rawRepo = config('services.github_asset.repo');
+        // Clean up URL just in case user provides full HTTPS/github.io link
+        $githubRepo = str_ireplace(
+            ['https://github.com/', 'http://github.com/', 'https://', 'http://', '.github.io'],
+            '',
+            (string) $rawRepo
+        );
+        $githubRepo = trim($githubRepo, '/');
+
         $githubToken = config('services.github_asset.token');
 
         if (! empty($githubRepo) && ! empty($githubToken)) {

@@ -1,0 +1,10 @@
+Checking config...
+Repo: L200160067/mone-assets
+Token: ********WHWB
+Branch: main
+
+Creating a dummy file to test upload...
+Uploading to https://api.github.com/repos/L200160067/mone-assets/contents/images/blog/test_1774530567.txt...
+
+✅ SUCCESS!
+Raw URL: https://raw.githubusercontent.com/L200160067/mone-assets/main/images/blog/test_1774530567.txt
