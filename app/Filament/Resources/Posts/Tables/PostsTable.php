@@ -37,6 +37,12 @@ class PostsTable
                         default => 'gray',
                     }),
                 TextColumn::make('author')->searchable(),
+                TextColumn::make('is_ai_generated')
+                    ->label('Source')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'AI Generated' : 'Manual')
+                    ->color(fn ($state) => $state ? 'info' : 'gray')
+                    ->icon(fn ($state) => $state ? 'heroicon-m-sparkles' : 'heroicon-m-pencil-square'),
                 TextColumn::make('published_at')->dateTime()->sortable(),
                 TextColumn::make('views_total')->numeric()->sortable(),
             ])

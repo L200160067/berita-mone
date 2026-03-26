@@ -23,6 +23,7 @@ class Post extends Model
         'views_total',
         'views_daily',
         'payload_hash',
+        'is_ai_generated',
     ];
 
     protected $casts = [

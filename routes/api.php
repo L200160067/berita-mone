@@ -13,16 +13,16 @@ Route::middleware('throttle:120,1')->group(function () {
      * File-cached for 60 seconds — CWP-safe (no Redis needed).
      */
     Route::get('/posts', function () {
-        $data = Cache::remember('posts:list', 60, function () {
+        $data = Cache::remember('posts:list:v2', 60, function () {
             return Post::where('status', 'published')
-                ->select('id', 'title', 'slug', 'excerpt', 'cover_url', 'cover_thumb', 'author', 'published_at')
+                ->select('id', 'title', 'slug', 'excerpt', 'cover_url', 'cover_thumb', 'author', 'published_at', 'category_id')
                 ->with(['category:id,name,slug'])
                 ->latest('published_at')
                 ->get();
         });
 
         return response()->json(['success' => true, 'data' => $data])
-            ->header('Access-Control-Allow-Origin', 'https://mone.mutudev.com');
+            ->header('Access-Control-Allow-Origin', config('app.env') === 'local' ? '*' : 'https://mone.mutudev.com');
     });
 
     /**
@@ -46,7 +46,7 @@ Route::middleware('throttle:120,1')->group(function () {
         $post->increment('views_daily');
 
         return response()->json(['success' => true, 'data' => $post->fresh()])
-            ->header('Access-Control-Allow-Origin', 'https://mone.mutudev.com');
+            ->header('Access-Control-Allow-Origin', config('app.env') === 'local' ? '*' : 'https://mone.mutudev.com');
     });
 
 });

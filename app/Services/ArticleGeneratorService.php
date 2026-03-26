@@ -123,7 +123,8 @@ PROMPT;
             'content'          => $parsed['content'],
             'meta_title'       => Str::limit($title, 60),
             'meta_description' => Str::limit($parsed['excerpt'], 155),
-            'author'           => 'AI Content Engine',
+            'author'           => auth()->user()?->name ?? 'System',
+            'is_ai_generated'  => true,
             'source'           => 'groq',
         ];
     }
@@ -143,7 +144,8 @@ PROMPT;
             'content'          => $this->content($input),
             'meta_title'       => Str::limit($title, 60),
             'meta_description' => Str::limit($this->excerpt($input), 155),
-            'author'           => 'Admin Automations',
+            'author'           => auth()->user()?->name ?? 'System',
+            'is_ai_generated'  => false,
             'source'           => 'template',
         ];
     }
