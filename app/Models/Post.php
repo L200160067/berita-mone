@@ -34,4 +34,17 @@ class Post extends Model
     {
         return $this->belongsTo(Category::class);
     }
+
+    protected static function booted()
+    {
+        static::saving(function ($post) {
+            if (empty($post->category_id)) {
+                $uncategorized = \App\Models\Category::firstOrCreate(
+                    ['slug' => 'uncategorized'],
+                    ['name' => 'Uncategorized']
+                );
+                $post->category_id = $uncategorized->id;
+            }
+        });
+    }
 }
