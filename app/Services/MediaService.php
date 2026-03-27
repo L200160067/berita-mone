@@ -158,11 +158,9 @@ class MediaService
 
     private function default(): array
     {
-        $baseUrl = rtrim(config('app.url'), '/');
-        
         return [
-            'url'   => $baseUrl.'/uploads/default.jpg',
-            'thumb' => $baseUrl.'/uploads/default.jpg',
+            'url'   => null,
+            'thumb' => null,
         ];
     }
 }

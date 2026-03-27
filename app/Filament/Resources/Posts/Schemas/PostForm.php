@@ -2,11 +2,9 @@
 
 namespace App\Filament\Resources\Posts\Schemas;
 
-use App\Models\Post;
 use App\Services\MediaService;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -58,39 +56,35 @@ class PostForm
                             ->default('upload')
                             ->reactive(),
 
-                        // Hidden fields — persist cover URL to DB on every save.
-                        Hidden::make('cover_url'),
-                        Hidden::make('cover_thumb'),
+                        // Preview gambar yang sudah tersimpan (edit mode)
+                        \Filament\Forms\Components\Placeholder::make('cover_preview')
+                            ->label('Current Cover Image')
+                            ->content(function ($record) {
+                                $url = $record?->cover_url;
+                                if (empty($url)) {
+                                    return new \Illuminate\Support\HtmlString('<span class="text-gray-400 text-sm italic">Belum ada gambar tersimpan.</span>');
+                                }
 
+                                return new \Illuminate\Support\HtmlString(
+                                    '<img src="'.e($url).'" style="max-height:200px;max-width:100%;border-radius:8px;object-fit:cover;" />'
+                                );
+                            })
+                            ->visible(fn (Get $get) => $get('image_source') === 'upload'),
+
+                        // FileUpload menyimpan ke disk 'uploads' → diproses di mutateFormDataBeforeSave
                         FileUpload::make('cover_upload')
-                            ->label('Cover Image')
+                            ->label('Upload New Image')
                             ->image()
-                            ->imagePreviewHeight('200')
-                            ->directory('posts')
+                            ->imagePreviewHeight('180')
+                            ->directory('temp-uploads')
                             ->disk('uploads')
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/gif', 'image/webp'])
-                            // Do NOT persist this virtual field to the DB.
-                            ->dehydrated(false)
-                            // Convert uploaded file to WebP via MediaService.
-                            ->saveUploadedFileUsing(function ($file, Set $set): string {
-                                /** @var \App\Services\MediaService $media */
-                                $media  = app(MediaService::class);
-                                $result = $media->convertPathToWebp(
-                                    $file->getRealPath(),
-                                    $file->getMimeType() ?: 'image/jpeg',
-                                );
-
-                                // Sync cover URL columns so they are saved to DB.
-                                $set('cover_url', $result['url']);
-                                $set('cover_thumb', $result['thumb']);
-
-                                // Return the relative path for FileUpload state (preview).
-                                return $result['filename']; // e.g. "posts/1234_abc.webp"
-                            })
+                            ->maxSize(5120)
                             ->visible(fn (Get $get) => $get('image_source') === 'upload'),
 
                         TextInput::make('cover_url')
                             ->label('Image URL')
+                            ->url()
                             ->visible(fn (Get $get) => $get('image_source') === 'url')
                             ->afterStateUpdated(function (Set $set, ?string $state): void {
                                 $set('cover_thumb', $state);
